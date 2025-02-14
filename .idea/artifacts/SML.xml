@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="SML">
+    <output-path>$PROJECT_DIR$/out/artifacts/SML</output-path>
+    <root id="archive" name="SML.jar">
+      <element id="module-output" name="SML.main" />
+    </root>
+  </artifact>
+</component>
