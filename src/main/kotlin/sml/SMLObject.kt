@@ -1,7 +1,7 @@
 package com.ndev.nml
 
-class NMLObject<T : Any>(
-    val nodes: List<T>
+class SMLObject(
+    val nodes: List<Any>
 ) {
     override fun toString(): String {
         return nodes.joinToString("\n")

@@ -1,4 +1,4 @@
-package nml.spans
+package sml.spans
 
 enum class SpanTypeface(val indicator: Char) {
     BOLD('b'),

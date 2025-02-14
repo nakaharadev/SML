@@ -1,27 +1,25 @@
 package com.ndev.nml
 
-import nml.spans.Span
-import nml.spans.SpanTypeface
-import nml.spans.SpannableText
+import sml.spans.Span
+import sml.spans.SpanTypeface
+import sml.spans.SpannableText
 import kotlin.reflect.KClass
-import kotlin.reflect.full.createType
-import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.primaryConstructor
 
-class NMLParser<T : Any>(private val nml: String, private val classList: List<KClass<T>>) {
-    constructor(nml: String, clazz: KClass<T>) : this(nml, listOf(clazz))
+class SMLParser(private val nml: String, vararg classList: KClass<Any>) {
+    private val classList = classList.toList()
 
-    fun parse(prefix: String): NMLObject<T> {
+    fun parse(prefix: String): SMLObject<Any> {
         if (nml.isEmpty())
-            return NMLObject(emptyList())
+            return SMLObject(emptyList())
 
         val nodesText = getNodesText(prefix)
-        val list = ArrayList<T>()
+        val list = ArrayList<Any>()
         for (node in nodesText) {
             list.add(getObjectForNode(node) ?: continue)
         }
 
-        return NMLObject(list)
+        return SMLObject(list)
     }
 
     private fun getNodesText(prefix: String): List<String> {
@@ -29,7 +27,7 @@ class NMLParser<T : Any>(private val nml: String, private val classList: List<KC
         return regex.findAll(nml).map { it.value }.toList()
     }
 
-    private fun getObjectForNode(node: String): T? {
+    private fun getObjectForNode(node: String): Any? {
         val parsed = parseNode(node)
         val className = parsed["className"] as String
         val constructorParams = parsed["constructorParams"] as HashMap<String, Any?>
@@ -188,7 +186,7 @@ class NMLParser<T : Any>(private val nml: String, private val classList: List<KC
         )
     }
 
-    private fun getObject(params: HashMap<String, Any?>, clazz: KClass<out Any>): T? {
+    private fun getObject(params: HashMap<String, Any?>, clazz: KClass<out Any>): Any? {
         val args = clazz.primaryConstructor!!.parameters.map {
             for (param in params) {
                 if (param.key == it.name) {
@@ -199,6 +197,6 @@ class NMLParser<T : Any>(private val nml: String, private val classList: List<KC
             }
         }.toTypedArray()
 
-        return clazz.primaryConstructor?.call(*args) as T?
+        return clazz.primaryConstructor?.call(*args)
     }
 }

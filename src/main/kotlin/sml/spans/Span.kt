@@ -1,4 +1,4 @@
-package nml.spans
+package sml.spans
 
 data class Span(
     val start: Int,

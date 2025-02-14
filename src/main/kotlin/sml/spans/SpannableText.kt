@@ -1,4 +1,4 @@
-package nml.spans
+package sml.spans
 
 class SpannableText(
     val text: String = "",
