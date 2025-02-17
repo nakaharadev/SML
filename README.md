@@ -67,6 +67,7 @@ for (node in smlObject.nodes) {
     }
 }
 ```
+`Span` object contain start and end index in text and `SpanTypeface` enum object.
 
 ### Caching
 You can use cache with SML. For this set child of `CacheOperator` in `SMLObject`.
