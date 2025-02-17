@@ -21,7 +21,7 @@ prefix : SomeObject {
 // create SMLParser instance
 val parser = SMLParser(fileData, SomeObject::class)
 // get SMLObject
-val SMDObject = parser.parse("prefix")
+val obj = parser.parse("prefix")
 ```
 
 A SMDObject contain nodes list with type `Any?`. For get some object without cast use `<object>.get<Type>(index)`
@@ -52,7 +52,7 @@ Using:
 ```kt
 // SomeObject.kt
 data class SomeObject(
-    spannableText: CharSequence
+    val spannableText: CharSequence
 )
 
 
@@ -67,3 +67,40 @@ for (node in smlObject.nodes) {
     }
 }
 ```
+
+### Caching
+You can use cache with SML. For this set child of `CacheOperator` in `SMLObject`.
+For example with `TextCacheOperator` (have in lib):
+```kt
+// create SMLParser instance
+val parser = SMLParser(fileData, SomeObject::class)
+// set cache operator
+parser.cacheOperator = TextCacheOperator(File("<path-to-file>"))
+// get SMLObject
+val obj = parser.parse("prefix")
+```
+This code create cache file in `<path-to-file>` in text. Parser will read and write cache automatically. If file not exists parser will start tokenize and cache operator create file.
+
+### Custom cache operator
+You can create custom cache operator if you want a different cache format.
+For example:
+```kt
+class CustomCacheOperator(file: File) : CacheOperator(file) {
+    override fun transform(cache: Any?): List<Token> {
+        // here you will convert the read cache into a list of tokens
+    }
+
+    override fun transform(tokens: List<Token>): Any? {
+        // here you will convert a list of tokens into the cache
+    }
+
+    override fun write(cache: Any?) {
+        // here you will write a transformed cache
+    }
+
+    override fun read(): Any? {
+        // here you read saved cache for transform
+    }
+}
+```
+Caution! The creation of a new file must be written manually. It should be in `read` method.
