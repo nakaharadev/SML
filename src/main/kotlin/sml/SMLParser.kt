@@ -1,105 +1,126 @@
-package com.ndev.nml
+package com.ndev.sml
 
+import sml.*
 import sml.spans.Span
 import sml.spans.SpanTypeface
 import sml.spans.SpannableText
 import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
 
-class SMLParser(private val nml: String, vararg classList: KClass<Any>) {
+class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
     private val classList = classList.toList()
 
-    fun parse(prefix: String): SMLObject<Any> {
-        if (nml.isEmpty())
+    private val tokenizer = Tokenizer(sml)
+
+    var cacheOperator: CacheOperator? = null
+
+    fun parse(prefix: String?): SMLObject {
+        var tokens: List<Token>? = emptyList()
+
+        if (cacheOperator != null) {
+            tokens = cacheOperator?.transform(cacheOperator?.read())
+        }
+
+        if (sml.isEmpty())
             return SMLObject(emptyList())
 
-        val nodesText = getNodesText(prefix)
+        if (tokens?.isEmpty() == true) {
+            tokens = tokenizer.tokenize()
+
+            if (cacheOperator != null) {
+                cacheOperator?.write(cacheOperator?.transform(tokens))
+            }
+        }
+
+        val nodes = sliceToNodes(tokens!!)
         val list = ArrayList<Any>()
-        for (node in nodesText) {
-            list.add(getObjectForNode(node) ?: continue)
+        for (node in nodes) {
+            list.add(getObjectForNode(node, prefix) ?: continue)
         }
 
         return SMLObject(list)
     }
 
-    private fun getNodesText(prefix: String): List<String> {
-        val regex = Regex(pattern = """$prefix : [A-Za-z]+ \{[^}]*\}""", options = setOf(RegexOption.IGNORE_CASE))
-        return regex.findAll(nml).map { it.value }.toList()
+    private fun sliceToNodes(tokens: List<Token>): List<List<Token>> {
+        return sliceFor(tokens, TokenType.START_DECLARE_NODE, TokenType.END_DECLARE_NODE)
     }
 
-    private fun getObjectForNode(node: String): Any? {
+    private fun getObjectForNode(node: List<Token>, prefix: String?): Any? {
         val parsed = parseNode(node)
         val className = parsed["className"] as String
         val constructorParams = parsed["constructorParams"] as HashMap<String, Any?>
         val clazz = classList.find { it.simpleName == className }
 
-        return getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
-            "Cant find class for name $className"
-        ))
-    }
-
-    private fun parseNode(node: String): HashMap<String, Any?> {
-        val result = hashMapOf<String, Any?>()
-        result["className"] = getClassName(node)
-        result["constructorParams"] = getConstructorParams(node)
-
-        return result
-    }
-
-    private fun getClassName(node: String): String {
-        return node.split("[:{]".toRegex())[1].trim()
-    }
-
-    private fun getConstructorParams(node: String): HashMap<String, Any?> {
-        val result = hashMapOf<String, Any?>()
-
-        val regex = """param:[a-zA-Z]+=.*""".toRegex()
-        for (param in regex.findAll(node)) {
-            val pair = parseParam(param.value)
-            result[pair.first] = pair.second
+        return if (prefix != null) {
+            if (parsed["prefix"] != null && parsed["prefix"] == prefix) {
+                getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
+                    "Cant find class for name $className"
+                ))
+            } else null
+        } else {
+            getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
+                "Cant find class for name $className"
+            ))
         }
+    }
+
+    private fun parseNode(tokens: List<Token>): HashMap<String, Any?> {
+        val result = hashMapOf<String, Any?>()
+        result["className"] = findToken(tokens, TokenType.NODE_CLASS)?.lexeme
+
+        val prefix = findToken(tokens, TokenType.NODE_PREFIX)?.lexeme ?: ""
+        if (prefix.isNotEmpty())
+            result["prefix"] = prefix
+
+        val params = hashMapOf<String, Any?>()
+        val slices = sliceParams(tokens)
+        for (slice in slices) {
+            val paramType = findToken(slice, TokenType.NODE_PARAM_TYPE)?.lexeme ?: ""
+            if (paramType == "param") {
+                val paramName = findToken(slice, TokenType.NODE_PARAM_NAME)?.lexeme ?: ""
+                val operator = findToken(slice, TokenType.OPERATOR)
+                if (operator?.lexeme.toString() == Operator.SET.strName) {
+                    val type = findToken(slice, TokenType.DATA_TYPE)?.lexeme ?: ""
+                    val identifier = findToken(slice, TokenType.IDENTIFIER)?.lexeme ?: ""
+                    val obj = getObjectForType(type, identifier)
+
+                    params[paramName] = obj
+                }
+            }
+        }
+        result["constructorParams"] = params
 
         return result
     }
 
-    private fun parseParam(param: String): Pair<String, Any?> {
-        val split = param.split('=')
-
-        val name = param.split("[:=]".toRegex())[1]
-        val obj = getObjectForParam(split.subList(1, split.size).joinToString('='.toString()))
-
-        return Pair(name, obj)
-    }
-
-    private fun getObjectForParam(value: String): Any? {
-        if (value == "null")
+    private fun getObjectForType(type: String, value: String): Any? {
+        if (type.isEmpty())
             return null
 
-        return when (getTypeName(value)) {
+        return when (type) {
             "string" -> value.trim('"')
             "int" -> value.toInt()
             "float" -> value.toFloat()
-            "object" -> getParamObject(value)
             else -> null
         }
     }
 
-    private fun getTypeName(value: String): String {
-        if (checkIsString(value))
-            return "string"
-        if (value.toIntOrNull() != null)
-            return "int"
-        if (value.toFloatOrNull() != null)
-            return "float"
-
-        if (value.split('(')[0] == "obj")
-            return "object"
-
-        return ""
+    private fun sliceParams(tokens: List<Token>): List<List<Token>> {
+        return sliceFor(tokens, TokenType.NODE_START_PARAM, TokenType.NODE_END_PARAM)
     }
 
-    private fun checkIsString(value: String): Boolean {
-        return value.startsWith('"') && value.endsWith('"')
+    private fun getObject(params: HashMap<String, Any?>, clazz: KClass<out Any>): Any? {
+        val args = clazz.primaryConstructor!!.parameters.map {
+            for (param in params) {
+                if (param.key == it.name) {
+                    if (isSpannableText(param.value as String?))
+                        return@map getSpannableText(param.value as String)
+                    return@map param.value
+                }
+            }
+        }.toTypedArray()
+
+        return clazz.primaryConstructor?.call(*args)
     }
 
     private fun isSpannableText(text: String?): Boolean {
@@ -139,64 +160,30 @@ class SMLParser(private val nml: String, vararg classList: KClass<Any>) {
         return SpannableText(correctText, spans)
     }
 
-    private fun getParamObject(param: String): Any? {
-        val newParam = param.replace("""".*"""".toRegex()) {
-            return@replace "\"*${it.value.substring(1, it.value.length - 1)}\""
-        }
-        val params = newParam.split("[()]".toRegex())[1]
-        val split = params.split('"')
-            .filter { it.isNotEmpty() }
-
-        val splitWithStrings = ArrayList<String>()
-        for (elem in split) {
-            if (!elem.startsWith('*'))
-                splitWithStrings.addAll(elem.split(','))
-            else splitWithStrings.add("\"${elem.substring(1)}\"")
-        }
-
-        var corrected = false
-        val correctSplit = ArrayList<String>()
-        for (i: Int in splitWithStrings.indices) {
-            if (corrected) {
-                corrected = false
-                continue
-            }
-
-            if (splitWithStrings[i].endsWith('=')) {
-                correctSplit.add(splitWithStrings[i].trim() + splitWithStrings[i + 1].trim())
-                corrected = true
-            } else correctSplit.add(splitWithStrings[i].trim())
-        }
-
-        val clazz = classList.find {
-            it.simpleName == correctSplit[0]
-        }
-
-        correctSplit.removeAt(0)
-        val args = correctSplit.map {
-            val argSplit = it.split('=')
-            Pair(argSplit[0], argSplit[1])
-        }.toTypedArray()
-
-        return getObject(
-            hashMapOf(*args),
-            clazz ?: throw UnresolvedClassNameException(
-                "Cant find class for name ${correctSplit[0]}"
-            )
-        )
+    private fun findToken(tokens: List<Token>, type: TokenType): Token? {
+        return tokens.find { it.type == type }
     }
 
-    private fun getObject(params: HashMap<String, Any?>, clazz: KClass<out Any>): Any? {
-        val args = clazz.primaryConstructor!!.parameters.map {
-            for (param in params) {
-                if (param.key == it.name) {
-                    if (isSpannableText(param.value as String?))
-                        return@map getSpannableText(param.value as String)
-                    return@map param.value
+    private fun sliceFor(tokens: List<Token>, startType: TokenType, endType: TokenType): List<List<Token>> {
+        val result = ArrayList<List<Token>>()
+        var slice = ArrayList<Token>()
+
+        var isNode = false
+        for (token in tokens) {
+            if (isNode) {
+                if (token.type == endType) {
+                    result.add(slice)
+                    slice = ArrayList()
+                    isNode = false
+                } else {
+                    slice.add(token)
                 }
             }
-        }.toTypedArray()
 
-        return clazz.primaryConstructor?.call(*args)
+            if (token.type == startType)
+                isNode = true
+        }
+
+        return result
     }
 }

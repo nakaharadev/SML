@@ -1,4 +1,4 @@
-package com.ndev.nml
+package com.ndev.sml
 
 class SMLObject(
     val nodes: List<Any>

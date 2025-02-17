@@ -43,3 +43,7 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Test ###
+src/main/kotlin/Main.kt
+src/main/kotlin/SomeClass.kt
