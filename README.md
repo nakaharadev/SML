@@ -7,8 +7,8 @@ prefix : SomeObject {
     param:text="Hello, world"
 }
 ```
-For this XML will be created object for class SomeClass with constructor like `constructor(text: CharSequence)`.
-In this case you should use `CharSequence` for prepare errors in situation where text param contain markdown. About using MD later.
+For this SML will be created object for class SomeClass with constructor like `constructor(text: CharSequence)`.
+In this case you should use `CharSequence` to prevent errors in case the text contains markdown. About using MD later.
 If param is nullable you can set null:
 ```
 prefix : SomeObject {
@@ -67,7 +67,7 @@ for (node in smlObject.nodes) {
     }
 }
 ```
-`Span` object contain start and end index in text and `SpanTypeface` enum object.
+`Span` object contains start and end index in text and `SpanTypeface` enum object.
 
 ### Caching
 You can use cache with SML. For this set child of `CacheOperator` in `SMLObject`.
