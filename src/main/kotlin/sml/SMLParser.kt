@@ -1,6 +1,7 @@
 package com.ndev.sml
 
 import sml.*
+import sml.exception.UnresolvedClassNameException
 import sml.spans.Span
 import sml.spans.SpanTypeface
 import sml.spans.SpannableText
@@ -55,12 +56,14 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
             if (parsed["prefix"] != null && parsed["prefix"] == prefix) {
                 getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
                     "Cant find class for name $className"
-                ))
+                )
+                )
             } else null
         } else {
             getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
                 "Cant find class for name $className"
-            ))
+            )
+            )
         }
     }
 

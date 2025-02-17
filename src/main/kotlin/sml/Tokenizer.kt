@@ -1,5 +1,7 @@
 package sml
 
+import sml.exception.SMLSyntaxException
+
 
 class Tokenizer(val smlData: String) {
     fun tokenize(): List<Token> {
