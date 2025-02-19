@@ -2,7 +2,7 @@
 Scripted markup language for serializing
 
 ### Syntax
-```
+```sml
 prefix : SomeObject {
     param:text="Hello, world"
 }
@@ -10,7 +10,7 @@ prefix : SomeObject {
 For this SML will be created object for class SomeClass with constructor like `constructor(text: CharSequence)`.
 In this case you should use `CharSequence` to prevent errors in case the text contains markdown. About using MD later.
 If param is nullable you can set null:
-```
+```sml
 prefix : SomeObject {
     param:text=null
 }
@@ -29,12 +29,12 @@ A SMDObject contain nodes list with type `Any?`. For get some object without cas
 ### using MD
 In SML included itself MD language for string type.
 Syntax:
-```
+```sml
 b&<text>&
 ```
 In this case `b` is indicator for set span type.
 All spans:
-```
+```sml
 b - bold
 i - italian/cursive
 m - monospace
@@ -42,7 +42,7 @@ u - underline
 c - cross out
 ```
 And using in file:
-```
+```sml
 prefix : SomeObject {
     param:text="b&Hello&, i&world&"
 }
@@ -105,3 +105,34 @@ class CustomCacheOperator(file: File) : CacheOperator(file) {
 }
 ```
 Caution! The creation of a new file must be written manually. It should be in `read` method.
+
+### Scripting
+Language can use itself scripts without special blocks. For example:
+```sml
+prefix SomeClass {
+    param:obj = obj(cls SomeParamClass, map { text: "Hello, world" })
+}
+```
+In this case used function `obj`. This function have signature `obj(clazz: Cls, params: Map): Any`. `Cls` and `Map` is SML types, but `Any` is Kotlin type because this function creates an object based on the class passed by the first argument.
+
+#### SML types
+SML types table:
+```sml
++--Name---+--Description---+--Creating------------+
+| String  | String value   | "<text>"             |
++---------+----------------+----------------------+
+| Int     | Integer value  | 0                    |
++---------+----------------+----------------------+
+| Float   | Float value    | 0.0 or 0.0f          |
++---------+----------------+----------------------+
+| Map     | Hash map       | map {                |
+|         |                |     <key>: <value>,  |
+|         |                |     ...,             |
+|         |                |     <key>: <value>   |
+|         |                | }                    |
++---------+----------------+----------------------+
+| Cls     | KClass in      | cls <class name>     |
+|         | script         |                      |
++---------+----------------+----------------------+
+```
+For use Cls the appropriate KClass must be passed
