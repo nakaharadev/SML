@@ -1,7 +1,13 @@
 package com.ndev.sml
 
 import sml.*
+import sml.exception.SMLSyntaxException
 import sml.exception.UnresolvedClassNameException
+import sml.script.functions.Function
+import sml.script.types.Cls
+import sml.script.types.Map
+import sml.script.types.Obj
+import sml.script.types.Str
 import sml.spans.Span
 import sml.spans.SpanTypeface
 import sml.spans.SpannableText
@@ -15,7 +21,7 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
 
     var cacheOperator: CacheOperator? = null
 
-    fun parse(prefix: String?): SMLObject {
+    fun parse(prefix: String? = null): SMLObject {
         var tokens: List<Token>? = emptyList()
 
         if (cacheOperator != null) {
@@ -54,15 +60,17 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
 
         return if (prefix != null) {
             if (parsed["prefix"] != null && parsed["prefix"] == prefix) {
-                getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
-                    "Cant find class for name $className"
-                )
+                getObject(
+                    constructorParams, clazz ?: throw UnresolvedClassNameException(
+                        "Cant find class for name $className"
+                    )
                 )
             } else null
         } else {
-            getObject(constructorParams, clazz ?: throw UnresolvedClassNameException(
-                "Cant find class for name $className"
-            )
+            getObject(
+                constructorParams, clazz ?: throw UnresolvedClassNameException(
+                    "Cant find class for name $className"
+                )
             )
         }
     }
@@ -84,8 +92,28 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
                 val operator = findToken(slice, TokenType.OPERATOR)
                 if (operator?.lexeme.toString() == Operator.SET.strName) {
                     val type = findToken(slice, TokenType.DATA_TYPE)?.lexeme ?: ""
-                    val identifier = findToken(slice, TokenType.IDENTIFIER)?.lexeme ?: ""
-                    val obj = getObjectForType(type, identifier)
+                    val obj = if (type != "function") {
+                        val identifier = findToken(slice, TokenType.IDENTIFIER)?.lexeme ?: ""
+                        getObjectForType(type, identifier)
+                    } else {
+                        val funParams = sliceFor(slice, TokenType.FUNCTION_PARAM_START, TokenType.FUNCTION_PARAM_END)
+                        val funParamsObjects = ArrayList<Obj>()
+                        for (param in funParams) {
+                            funParamsObjects.add(
+                                createScriptObject(
+                                    findToken(param, TokenType.DATA_TYPE) ?: continue,
+                                    findToken(param, TokenType.IDENTIFIER) ?: continue
+                                ) ?: continue
+                            )
+                        }
+
+                        val funName = findToken(slice, TokenType.IDENTIFIER)?.lexeme ?: ""
+                        if (funName != "obj") {
+                            throw SMLSyntaxException("function $funName not resolved here")
+                        }
+
+                        callFunction(funName, *funParamsObjects.toTypedArray())
+                    }
 
                     params[paramName] = obj
                 }
@@ -116,8 +144,10 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
         val args = clazz.primaryConstructor!!.parameters.map {
             for (param in params) {
                 if (param.key == it.name) {
-                    if (isSpannableText(param.value as String?))
-                        return@map getSpannableText(param.value as String)
+                    if (param.value is CharSequence) {
+                        if (isSpannableText(param.value as String?))
+                            return@map getSpannableText(param.value as String)
+                    }
                     return@map param.value
                 }
             }
@@ -161,6 +191,22 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
         } while (true)
 
         return SpannableText(correctText, spans)
+    }
+
+    private fun createScriptObject(type: Token, value: Token): Obj? {
+        if (type.lexeme == "string")
+            return Str(value.lexeme.trim('"'))
+        if (type.lexeme == "map")
+            return Map(value.lexeme)
+        if (type.lexeme == "cls")
+            return Cls(classList.find { it.simpleName == value.lexeme.substring(4) } ?: return null)
+
+        return null
+    }
+
+    private fun callFunction(name: String, vararg params: Obj?): Any? {
+        val func = Function.find(name) ?: throw SMLSyntaxException("Can't find declaration for $name function")
+        return func.call(*params)
     }
 
     private fun findToken(tokens: List<Token>, type: TokenType): Token? {

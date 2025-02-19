@@ -1,6 +1,9 @@
 package sml
 
 import sml.exception.SMLSyntaxException
+import sml.script.types.Map
+import sml.script.types.Str
+import sml.script.types.Obj
 
 
 class Tokenizer(val smlData: String) {
@@ -18,7 +21,7 @@ class Tokenizer(val smlData: String) {
         for (node in nodes) {
             tokens.add(Token(TokenType.START_DECLARE_NODE))
 
-            val titleTokens = parseNodeTitle(node)
+            val titleTokens = parseNodeTitle(node.trim('\n'))
             if (titleTokens["prefix"] != null)
                 tokens.add(titleTokens["prefix"]!!)
             tokens.add(titleTokens["className"]!!)
@@ -33,8 +36,10 @@ class Tokenizer(val smlData: String) {
     }
 
     private fun getNodesText(): List<String> {
-        return Regex(pattern = """[a-zA-Z ]*:?[A-Za-z ]*\{[^}]*\}""", options = setOf(RegexOption.IGNORE_CASE))
-            .findAll(smlData).map { it.value }.toList()
+        val split = """\n\}""".toRegex().split(smlData)
+        return split
+            .mapIndexed { index, s ->  if (index != split.size - 1) "$s\n}" else s }
+            .filter { it.isNotEmpty() }.toList()
     }
 
     private fun parseNodeTitle(node: String): HashMap<String, Token?> {
@@ -75,7 +80,7 @@ class Tokenizer(val smlData: String) {
 
         result.add(Token(TokenType.NODE_START_PARAM))
 
-        val split = param.split('=')
+        val split = param.split('=', ignoreCase = false, limit = 2)
         if (split.size == 1)
             throw SMLSyntaxException("param should be initialized in $param")
 
@@ -85,10 +90,90 @@ class Tokenizer(val smlData: String) {
         result.add(Token(TokenType.NODE_PARAM_TYPE, paramType))
         result.add(Token(TokenType.NODE_PARAM_NAME, paramName))
         result.add(Token(TokenType.OPERATOR, Operator.SET.strName))
-        result.add(Token(TokenType.DATA_TYPE, getValueType(split[1].trim())))
-        result.add(Token(TokenType.IDENTIFIER, split[1].trim()))
+        val valueType = getValueType(split[1].trim())
+        result.add(Token(TokenType.DATA_TYPE, valueType))
+        if (valueType != "function")
+            result.add(Token(TokenType.IDENTIFIER, split[1].trim()))
+        else
+            result.addAll(parseFunction(split[1].trim()))
 
         result.add(Token(TokenType.NODE_END_PARAM))
+
+        return result
+    }
+
+    private fun parseFunction(func: String): List<Token> {
+        val result = ArrayList<Token>()
+        result.add(Token(TokenType.FUNCTION_CALL_START))
+
+        val funcParamsStr = Regex(pattern = """\(.*\)""", option = RegexOption.DOT_MATCHES_ALL).find(func)?.value ?: ""
+
+        val params = getFunctionParams(funcParamsStr.trim('(', ')'))
+        val funName = func.split('(')[0]
+        result.add(Token(TokenType.IDENTIFIER, funName.trim()))
+
+        for (param in params) {
+            val type = checkType(param)
+            result.add(Token(TokenType.FUNCTION_PARAM_START))
+            result.add(Token(TokenType.DATA_TYPE, type))
+            result.add(Token(TokenType.IDENTIFIER, param.trim()))
+            result.add(Token(TokenType.FUNCTION_PARAM_END))
+        }
+
+        result.add(Token(TokenType.FUNCTION_CALL_END))
+
+        return result
+    }
+
+    private fun checkType(value: String): String {
+        val defType = getValueType(value)
+        if (defType.isNotEmpty())
+            return defType
+
+        if ("""map ?\{.*\}""".toRegex().find(value) != null)
+            return "map"
+        if (value.startsWith("cls"))
+            return "cls"
+
+        return ""
+    }
+
+    private fun getFunctionParams(func: String): List<String> {
+        val result = ArrayList<String>()
+
+        var param = ""
+        var ignore = false
+        var braces = 0
+
+        for (c in func) {
+            if (c in "{([") {
+                braces += 1
+                ignore = true
+                param += c
+
+                continue
+            }
+            if (c in "})]") {
+                braces -= 1
+
+                if (braces == 0)
+                    ignore = false
+                param += c
+
+                continue
+            }
+
+            if (!ignore) {
+                if (c == ',') {
+                    result.add(param.trim())
+                    param = ""
+                } else {
+                    param += c
+                }
+            } else param += c
+        }
+
+        result.add(param)
 
         return result
     }
@@ -101,8 +186,8 @@ class Tokenizer(val smlData: String) {
         if (value.toFloatOrNull() != null)
             return "float"
 
-        if (value.split('(')[0] == "obj")
-            return "object"
+        if (value.matches("""[a-zA-Z]+\(.*\)""".toRegex()))
+            return "function"
 
         return ""
     }

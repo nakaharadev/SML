@@ -16,6 +16,8 @@ enum class TokenType {
     IDENTIFIER,
     FUNCTION_CALL_START,
     FUNCTION_CALL_END,
+    FUNCTION_PARAM_START,
+    FUNCTION_PARAM_END,
     FUNCTION_NAME;
 
     companion object {

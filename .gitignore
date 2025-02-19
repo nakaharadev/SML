@@ -47,3 +47,4 @@ bin/
 ### Test ###
 /src/main/kotlin/Main.kt
 /src/main/kotlin/SomeClass.kt
+/src/main/kotlin/SomeParamClass.kt
