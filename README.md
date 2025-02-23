@@ -118,21 +118,21 @@ In this case used function `obj`. This function have signature `obj(clazz: Cls, 
 #### SML types
 SML types table:
 ```sml
-+--Name---+--Description---+--Creating------------+
-| String  | String value   | "<text>"             |
-+---------+----------------+----------------------+
-| Int     | Integer value  | 0                    |
-+---------+----------------+----------------------+
-| Float   | Float value    | 0.0 or 0.0f          |
-+---------+----------------+----------------------+
-| Map     | Hash map       | map {                |
-|         |                |     <key>: <value>,  |
-|         |                |     ...,             |
-|         |                |     <key>: <value>   |
-|         |                | }                    |
-+---------+----------------+----------------------+
-| Cls     | KClass in      | cls <class name>     |
-|         | script         |                      |
-+---------+----------------+----------------------+
+╔⁠═⁠═⁠Name═⁠═⁠═⁠╤⁠═⁠═⁠Description═⁠═⁠═⁠╤⁠═⁠ ═⁠Creating═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠╗⁠
+║⁠ String  | String value   | "<text>"             ║⁠
++═⁠═⁠═⁠═⁠═⁠═⁠═⁠+----------------+----------------------╢⁠
+║⁠ Int     | Integer value  | 0                    ║⁠
++---------+----------------+----------------------╢⁠
+║⁠ Float   | Float value    | 0.0 or 0.0f          ║⁠
++---------+----------------+----------------------╢⁠
+║⁠ Map     | Hash map       | map {                |
+║⁠         |                |     <key>: <value>,  |
+║⁠         |                |     ...,             ║⁠
+║⁠         |                |     <key>: <value>   |
+║⁠         |                | }                    ║⁠
++---------+----------------+----------------------╢⁠
+║⁠ Cls     | KClass in      | cls <class name>     |
+║⁠         | script         |                      ║⁠
+╚⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠╧⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠╧⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠═⁠╝⁠
 ```
 For use Cls the appropriate KClass must be passed
