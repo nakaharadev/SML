@@ -1,9 +1,6 @@
 package sml
 
 import sml.exception.SMLSyntaxException
-import sml.script.types.Map
-import sml.script.types.Str
-import sml.script.types.Obj
 
 
 class Tokenizer(val smlData: String) {
@@ -25,7 +22,6 @@ class Tokenizer(val smlData: String) {
             if (titleTokens["prefix"] != null)
                 tokens.add(titleTokens["prefix"]!!)
             tokens.add(titleTokens["className"]!!)
-
 
             tokens.addAll(parseNodeBody(node))
 
@@ -91,18 +87,51 @@ class Tokenizer(val smlData: String) {
         result.add(Token(TokenType.NODE_PARAM_NAME, paramName))
         result.add(Token(TokenType.OPERATOR, Operator.SET.strName))
         val valueType = getValueType(split[1].trim())
-        result.add(Token(TokenType.DATA_TYPE, valueType))
-        if (valueType != "function")
-            result.add(Token(TokenType.IDENTIFIER, split[1].trim()))
-        else
-            result.addAll(parseFunction(split[1].trim()))
+        if (valueType != "exp") result.add(Token(TokenType.DATA_TYPE, valueType))
+        if (valueType != "function") {
+            if (valueType == "exp")
+                result.addAll(parseExpression(split[1].trim()))
+            else
+                result.add(Token(TokenType.IDENTIFIER, split[1].trim()))
+        } else result.addAll(parseFunctionCall(split[1].trim()))
 
         result.add(Token(TokenType.NODE_END_PARAM))
 
         return result
     }
 
-    private fun parseFunction(func: String): List<Token> {
+    private fun parseExpression(value: String): List<Token> {
+        val result = ArrayList<Token>()
+        result.add(Token(TokenType.START_EXPRESSION))
+
+        var identifier = ""
+        var operator = ""
+        var isOperator = false
+
+        for (c in value) {
+            if (c in "+-=<>!^*/%") {
+                if (!isOperator) {
+                    result.add(Token(TokenType.IDENTIFIER, identifier))
+                    identifier = ""
+                }
+                isOperator = true
+                operator += c
+            } else {
+                if (isOperator) {
+                    result.add(Token(TokenType.OPERATOR, (Operator of operator).strName))
+                    operator = ""
+                }
+                identifier += c
+                isOperator = false
+            }
+        }
+
+        result.add(Token(TokenType.END_EXPRESSION))
+
+        return result
+    }
+
+    private fun parseFunctionCall(func: String): List<Token> {
         val result = ArrayList<Token>()
         result.add(Token(TokenType.FUNCTION_CALL_START))
 
@@ -134,6 +163,8 @@ class Tokenizer(val smlData: String) {
             return "map"
         if (value.startsWith("cls"))
             return "cls"
+        if (value.contains("""[+\-=<>!^*/%]+""".toRegex()))
+            return "exp"
 
         return ""
     }

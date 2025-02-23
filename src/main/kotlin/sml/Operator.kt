@@ -10,7 +10,7 @@ enum class Operator(val symbol: String) {
     LESS_OR_EQUALS("<="),
     ADD("+"),
     SUB("-"),
-    DIV(":"),
+    DIV("/"),
     MUL("*"),
     ICR("++"),
     DEC("--"),

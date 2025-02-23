@@ -39,6 +39,8 @@ class SMLParser(private val sml: String, vararg classList: KClass<out Any>) {
             }
         }
 
+        println(tokens?.joinToString(separator = "\n"))
+
         val nodes = sliceToNodes(tokens!!)
         val list = ArrayList<Any>()
         for (node in nodes) {

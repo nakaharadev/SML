@@ -18,7 +18,9 @@ enum class TokenType {
     FUNCTION_CALL_END,
     FUNCTION_PARAM_START,
     FUNCTION_PARAM_END,
-    FUNCTION_NAME;
+    FUNCTION_NAME,
+    START_EXPRESSION,
+    END_EXPRESSION;
 
     companion object {
         infix fun of(name: String): TokenType? {
